@@ -98,14 +98,14 @@ app.use("/api/search", require("./routes/searchRoutes"));
 
 /* =========================
    SERVE REACT BUILD
-========================= */
+========================= 
 const clientBuildPath = path.join(__dirname, "../edusync-client/build");
 app.use(express.static(clientBuildPath));
 
 app.use((req, res) => {
   res.sendFile(path.join(clientBuildPath, "index.html"));
 });
-
+*/
 /* =========================
    HTTPS SERVER + SOCKET
 ========================= */
