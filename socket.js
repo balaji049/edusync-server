@@ -12,10 +12,9 @@ const communityMembers = new Map();  // room -> Set(userId)
 const typingUsers = new Map();       // room -> Set(userId)
 
 /* ============================
-   P2P CALL STATE
-   room -> { host: socketId, participants: Set(socketId) }
+   P2P CALL STATE (VOICE + VIDEO)
 ============================ */
-const activeCalls = {};
+const activeCalls = {}; // room -> Set(socketId)
 
 /* ============================
    INIT SOCKET SERVER
@@ -111,30 +110,20 @@ function init(server) {
     });
 
     /* ============================
-       🎥 P2P VIDEO / VOICE CALL
+       🔊 P2P CALL (VOICE + VIDEO)
     ============================ */
     socket.on("call:join", ({ communityId, channelId, user }) => {
       const room = `call:${communityId}:${channelId}`;
       socket.join(room);
 
-      // Create call state if not exists
-      if (!activeCalls[room]) {
-        activeCalls[room] = {
-          host: socket.id,                // 🔥 FIRST USER IS HOST
-          participants: new Set(),
-        };
-      }
+      if (!activeCalls[room]) activeCalls[room] = new Set();
+      activeCalls[room].add(socket.id);
 
-      const call = activeCalls[room];
-      call.participants.add(socket.id);
+      socket.emit(
+        "call:existing-users",
+        [...activeCalls[room]].filter((id) => id !== socket.id)
+      );
 
-      // 🔥 Send full call state to joining user
-      socket.emit("call:state", {
-        hostSocketId: call.host,
-        participants: [...call.participants],
-      });
-
-      // 🔔 Notify others someone joined
       socket.to(room).emit("call:user-joined", {
         socketId: socket.id,
         user,
@@ -142,49 +131,23 @@ function init(server) {
     });
 
     socket.on("call:offer", ({ to, offer }) => {
-      io.to(to).emit("call:offer", {
-        from: socket.id,
-        offer,
-      });
+      io.to(to).emit("call:offer", { from: socket.id, offer });
     });
 
     socket.on("call:answer", ({ to, answer }) => {
-      io.to(to).emit("call:answer", {
-        from: socket.id,
-        answer,
-      });
+      io.to(to).emit("call:answer", { from: socket.id, answer });
     });
 
     socket.on("call:ice", ({ to, candidate }) => {
-      io.to(to).emit("call:ice", {
-        from: socket.id,
-        candidate,
-      });
+      io.to(to).emit("call:ice", { from: socket.id, candidate });
     });
 
     socket.on("call:leave", ({ communityId, channelId }) => {
       const room = `call:${communityId}:${channelId}`;
-      const call = activeCalls[room];
-      if (!call) return;
+      activeCalls[room]?.delete(socket.id);
+      socket.to(room).emit("call:user-left", { socketId: socket.id });
 
-      call.participants.delete(socket.id);
-      socket.to(room).emit("call:user-left", {
-        socketId: socket.id,
-      });
-
-      // 🔥 If host leaves, promote next user
-      if (call.host === socket.id) {
-        const nextHost = call.participants.values().next().value;
-        call.host = nextHost || null;
-
-        if (call.host) {
-          io.to(room).emit("call:host-changed", {
-            hostSocketId: call.host,
-          });
-        }
-      }
-
-      if (call.participants.size === 0) {
+      if (activeCalls[room]?.size === 0) {
         delete activeCalls[room];
       }
     });
@@ -198,25 +161,13 @@ function init(server) {
       userSocketsMap.get(userId)?.delete(socket.id);
 
       for (const room in activeCalls) {
-        const call = activeCalls[room];
-        if (call.participants.has(socket.id)) {
-          call.participants.delete(socket.id);
+        if (activeCalls[room].has(socket.id)) {
+          activeCalls[room].delete(socket.id);
           socket.to(room).emit("call:user-left", {
             socketId: socket.id,
           });
 
-          if (call.host === socket.id) {
-            const nextHost = call.participants.values().next().value;
-            call.host = nextHost || null;
-
-            if (call.host) {
-              io.to(room).emit("call:host-changed", {
-                hostSocketId: call.host,
-              });
-            }
-          }
-
-          if (call.participants.size === 0) {
+          if (activeCalls[room].size === 0) {
             delete activeCalls[room];
           }
         }
