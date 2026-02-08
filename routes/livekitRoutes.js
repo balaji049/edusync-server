@@ -1,24 +1,42 @@
-import express from "express";
-import { AccessToken } from "livekit-server-sdk";
+const express = require("express");
+const { AccessToken } = require("livekit-server-sdk");
 
 const router = express.Router();
 
-router.post("/token", async (req, res) => {
+/*
+  POST /api/livekit/token
+  Body:
+  {
+    roomName: string,
+    userId: string,
+    userName?: string,
+    isHost?: boolean
+  }
+*/
+router.post("/token", (req, res) => {
   try {
     const { roomName, userId, userName, isHost } = req.body;
+
+    if (!roomName || !userId) {
+      return res
+        .status(400)
+        .json({ error: "roomName and userId required" });
+    }
 
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
     const url = process.env.LIVEKIT_URL;
 
     if (!apiKey || !apiSecret || !url) {
-      return res.status(500).json({ error: "LiveKit env missing" });
+      return res
+        .status(500)
+        .json({ error: "LiveKit env vars missing" });
     }
 
-    // ✅ Create token
+    // ✅ Create access token
     const at = new AccessToken(apiKey, apiSecret, {
       identity: userId,
-      name: userName,
+      name: userName || userId,
     });
 
     at.addGrant({
@@ -28,17 +46,19 @@ router.post("/token", async (req, res) => {
       canSubscribe: true,
     });
 
-    // 🔥 THIS IS THE KEY FIX
-    const jwt = at.toJwt();   // ← STRING
+    // 🔥 CRITICAL: convert to STRING JWT
+    const jwt = at.toJwt();
 
     return res.json({
-      token: jwt,             // ✅ STRING
-      url,                    // ✅ wss://xxx.livekit.cloud
+      token: jwt, // ✅ STRING (eyJhbGciOi...)
+      url,        // ✅ wss://xxxx.livekit.cloud
     });
   } catch (err) {
     console.error("LiveKit token error:", err);
-    res.status(500).json({ error: "Failed to generate token" });
+    return res
+      .status(500)
+      .json({ error: "Failed to generate LiveKit token" });
   }
 });
 
-export default router;
+module.exports = router;
