@@ -80,6 +80,7 @@ app.use(
 
 app.use(express.json());
 
+
 /* =========================
    STATIC FILES
 ========================= */
@@ -92,6 +93,7 @@ app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/community", require("./routes/communityRoutes"));
 app.use("/api/resources", require("./routes/resourceRoutes"));
 app.use("/api/messages", require("./routes/messageRoutes"));
+app.use("/api/livekit", require("./routes/livekitRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/ai", require("./routes/aiRoutes"));
 app.use("/api/search", require("./routes/searchRoutes"));
