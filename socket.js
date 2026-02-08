@@ -116,7 +116,7 @@ function init(server) {
     /* ============================
        📞 P2P CALL (VOICE + VIDEO)
     ============================ */
-    socket.on("call:join", ({ communityId, channelId }) => {
+    socket.on("call:join", ({ communityId, channelId, user }) => {
       const room = `call:${communityId}:${channelId}`;
       socket.join(room);
 
@@ -124,16 +124,19 @@ function init(server) {
         activeCalls[room] = new Set();
       }
 
-      // Send existing peer socket IDs to NEW user
+      // Send existing users to NEW user
       socket.emit(
-        "call:peers",
+        "call:existing-users",
         [...activeCalls[room]]
       );
 
       activeCalls[room].add(socket.id);
 
-      // Notify others that a new peer joined
-      socket.to(room).emit("call:user-joined", socket.id);
+      // Notify others someone joined
+      socket.to(room).emit("call:user-joined", {
+        socketId: socket.id,
+        user,
+      });
     });
 
     /* ============================
@@ -165,7 +168,9 @@ function init(server) {
 
       activeCalls[room]?.delete(socket.id);
 
-      socket.to(room).emit("call:user-left", socket.id);
+      socket.to(room).emit("call:user-left", {
+        socketId: socket.id,
+      });
 
       if (activeCalls[room]?.size === 0) {
         delete activeCalls[room];
@@ -185,7 +190,9 @@ function init(server) {
         if (activeCalls[room].has(socket.id)) {
           activeCalls[room].delete(socket.id);
 
-          socket.to(room).emit("call:user-left", socket.id);
+          socket.to(room).emit("call:user-left", {
+            socketId: socket.id,
+          });
 
           if (activeCalls[room].size === 0) {
             delete activeCalls[room];
