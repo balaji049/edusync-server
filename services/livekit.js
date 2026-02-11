@@ -1,34 +1,23 @@
 const { AccessToken } = require("livekit-server-sdk");
 
-function createLiveKitToken({
-  roomName,
-  userId,
-  userName,
-  isHost = false,
-}) {
-  if (!roomName || !userId) {
-    throw new Error("roomName and userId are required");
-  }
-
+function createLiveKitToken({ roomName, userId, userName }) {
   const token = new AccessToken(
     process.env.LIVEKIT_API_KEY,
     process.env.LIVEKIT_API_SECRET,
     {
-      identity: userId,
-      name: userName || userId,
+      identity: String(userId),
+      name: userName || String(userId),
     }
   );
 
   token.addGrant({
     room: roomName,
     roomJoin: true,
-
-    // 🔥 Host publishes, others subscribe
-    canPublish: isHost,
+    canPublish: true,
     canSubscribe: true,
   });
 
-  return token.toJwt();
+  return token.toJwt(); // 🔥 STRING ONLY
 }
 
 module.exports = { createLiveKitToken };
