@@ -113,16 +113,19 @@ function init(server) {
       );
     });
 
-    socket.on("call:started", ({ communityId, channelId }) => {
-  socket
-    .to(`${communityId}:${channelId}`)
-    .emit("call:active", true);
+    socket.on("call:join", ({ communityId, channelId }) => {
+  const room = `call:${communityId}:${channelId}`;
+  socket.join(room);
+
+  // 🔴 notify everyone: call is active
+  io.to(room).emit("call:active", true);
 });
 
-socket.on("call:ended", ({ communityId, channelId }) => {
-  socket
-    .to(`${communityId}:${channelId}`)
-    .emit("call:active", false);
+socket.on("call:leave", ({ communityId, channelId }) => {
+  const room = `call:${communityId}:${channelId}`;
+
+  // If last user leaves (simplified version)
+  io.to(room).emit("call:active", false);
 });
 
 
