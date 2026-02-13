@@ -113,6 +113,19 @@ function init(server) {
       );
     });
 
+    socket.on("call:started", ({ communityId, channelId }) => {
+  socket
+    .to(`${communityId}:${channelId}`)
+    .emit("call:active", true);
+});
+
+socket.on("call:ended", ({ communityId, channelId }) => {
+  socket
+    .to(`${communityId}:${channelId}`)
+    .emit("call:active", false);
+});
+
+
     /* ============================
        DISCONNECT CLEANUP
     ============================ */
